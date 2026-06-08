@@ -1,49 +1,99 @@
 package com.katha.mep.mep_ia_poc
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeContentPadding
-import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
-import org.jetbrains.compose.resources.painterResource
-
-import mep_ia_poc.shared.generated.resources.Res
-import mep_ia_poc.shared.generated.resources.compose_multiplatform
+import androidx.compose.ui.unit.dp
+import com.katha.mep.mep_ia_poc.chat.ChatScreen
+import com.katha.mep.mep_ia_poc.chat.ChatViewModel
+import com.katha.mep.mep_ia_poc.ui.components.PlaceholderPanel
+import com.katha.mep.mep_ia_poc.ui.navigation.AppTab
+import com.katha.mep.mep_ia_poc.viewmodel.AppViewModel
+import com.katha.mep.mep_ia_poc.viewmodel.previewAppViewModel
+import com.katha.mep.mep_ia_poc.viewmodel.previewChatViewModel
 
 @Composable
-@Preview
-fun App() {
+fun App(
+    viewModel: AppViewModel,
+    chatViewModel: ChatViewModel,
+) {
     MaterialTheme {
-        var showContent by remember { mutableStateOf(false) }
-        Column(
-            modifier = Modifier
-                .background(MaterialTheme.colorScheme.primaryContainer)
-                .safeContentPadding()
-                .fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Button(onClick = { showContent = !showContent }) {
-                Text("Click me!")
-            }
-            AnimatedVisibility(showContent) {
-                val greeting = remember { Greeting().greet() }
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Image(painterResource(Res.drawable.compose_multiplatform), null)
-                    Text("Compose: $greeting")
+        var selectedTab by remember { mutableStateOf(AppTab.Chat) }
+
+        Scaffold(
+            bottomBar = {
+                NavigationBar {
+                    AppTab.entries.forEach { tab ->
+                        NavigationBarItem(
+                            selected = selectedTab == tab,
+                            onClick = { selectedTab = tab },
+                            label = { Text(tab.label) },
+                            icon = { Text(tab.label.take(1)) },
+                        )
+                    }
+                }
+            },
+        ) { innerPadding ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+            ) {
+                when (selectedTab) {
+                    AppTab.Chat -> ChatScreen(
+                        viewModel = chatViewModel,
+                        appViewModel = viewModel,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                    AppTab.Home -> PlaceholderScreen(
+                        title = "Home",
+                        description = "Home personalization pending",
+                    )
+                    AppTab.Search -> PlaceholderScreen(
+                        title = "Search",
+                        description = "Intelligent search pending",
+                    )
                 }
             }
         }
     }
+}
+
+@Composable
+private fun PlaceholderScreen(
+    title: String,
+    description: String,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text(title, style = MaterialTheme.typography.headlineMedium)
+        PlaceholderPanel(
+            title = title,
+            description = description,
+        )
+    }
+}
+
+@Composable
+@Preview
+fun AppPreview() {
+    val appViewModel = previewAppViewModel()
+    App(
+        viewModel = appViewModel,
+        chatViewModel = previewChatViewModel(appViewModel),
+    )
 }
