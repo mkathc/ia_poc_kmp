@@ -18,7 +18,8 @@ data class SearchItem(
 
 data class SearchSuggestion(
     val id: String,
-    val label: String,
+    val text: String,
+    val label: String = text,
 )
 
 data class SearchSuggestedAction(

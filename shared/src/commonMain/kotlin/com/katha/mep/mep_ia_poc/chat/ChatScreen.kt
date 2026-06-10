@@ -38,6 +38,10 @@ import androidx.compose.ui.unit.dp
 import com.katha.mep.mep_ia_poc.config.FakeGatewayScenario
 import com.katha.mep.mep_ia_poc.config.ProviderMock
 import com.katha.mep.mep_ia_poc.models.chat.ChatMessage
+import com.katha.mep.mep_ia_poc.models.emergency.EmergencyContact
+import com.katha.mep.mep_ia_poc.models.emergency.EmergencyConversationStep
+import com.katha.mep.mep_ia_poc.models.emergency.EmergencyReport
+import com.katha.mep.mep_ia_poc.models.emergency.EmergencyType
 import com.katha.mep.mep_ia_poc.models.resilience.ExperienceFallback
 import com.katha.mep.mep_ia_poc.models.resilience.ExperienceFallbackType
 import com.katha.mep.mep_ia_poc.viewmodel.AppViewModel
@@ -53,9 +57,21 @@ fun ChatScreen(
     var input by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
 
-    LaunchedEffect(state.messages.size, state.messages.lastOrNull()?.text, state.isStreaming) {
+    LaunchedEffect(
+        state.messages.size,
+        state.messages.lastOrNull()?.text,
+        state.isStreaming,
+        state.showEmergencyOptions,
+        state.currentEmergencyStep?.id,
+        state.pendingEmergencyReports.size,
+    ) {
         if (state.messages.isNotEmpty()) {
-            listState.animateScrollToItem(state.messages.lastIndex)
+            val extraItems =
+                (if (state.pendingEmergencyReports.isNotEmpty()) 1 else 0) +
+                    (if (state.showEmergencyOptions) 1 else 0) +
+                    (if (state.activeEmergencyGuide?.contacts?.isNotEmpty() == true) 1 else 0) +
+                    (if (state.currentEmergencyStep != null) 1 else 0)
+            listState.animateScrollToItem(state.messages.lastIndex + extraItems)
         }
     }
 
@@ -66,9 +82,11 @@ fun ChatScreen(
                 scenario = state.activeScenario,
                 provider = state.activeProvider,
                 useRemoteGateway = debugState.useRemoteGateway,
+                enableLocalAiReadiness = debugState.enableLocalAiReadiness,
                 onScenarioSelected = viewModel::changeScenario,
                 onProviderSelected = viewModel::changeProvider,
                 onRemoteToggle = appViewModel::toggleRemoteGateway,
+                onLocalAiToggle = appViewModel::toggleLocalAiReadiness,
             )
         },
         bottomBar = {
@@ -91,8 +109,9 @@ fun ChatScreen(
                 ChatFallbackBanner(
                     fallback = fallback,
                     onDismiss = viewModel::dismissFallback,
-                    onRetry = viewModel::retryLastMessage,
+                    onRetry = viewModel::retryCloudAssistant,
                     onWhatsappFallback = viewModel::openWhatsappFallback,
+                    onOfflineSupport = { viewModel.startOfflineEmergencySupport("manual_${fallback.type.name}") },
                 )
             }
 
@@ -100,7 +119,8 @@ fun ChatScreen(
                 state.errorMessage?.let { error ->
                     ChatErrorBanner(
                         error = error,
-                        onRetry = viewModel::retryLastMessage,
+                        onRetry = viewModel::retryCloudAssistant,
+                        onOfflineSupport = { viewModel.startOfflineEmergencySupport("manual_error") },
                     )
                 }
             }
@@ -116,6 +136,42 @@ fun ChatScreen(
                 items(state.messages, key = { it.id }) { message ->
                     ChatMessageBubble(message)
                 }
+
+                if (state.pendingEmergencyReports.isNotEmpty()) {
+                    item {
+                        PendingSyncBanner(
+                            reports = state.pendingEmergencyReports,
+                            isSyncing = state.isEmergencySyncing,
+                            onSync = viewModel::syncPendingEmergencyReports,
+                        )
+                    }
+                }
+
+                if (state.showEmergencyOptions) {
+                    item {
+                        EmergencyInlineOptions(onSelected = viewModel::selectEmergencyType)
+                    }
+                }
+
+                state.activeEmergencyGuide?.let { guide ->
+                    if (guide.contacts.isNotEmpty()) {
+                        item {
+                            EmergencyContactsRow(
+                                contacts = guide.contacts,
+                                onContactTapped = viewModel::tapEmergencyContact,
+                            )
+                        }
+                    }
+                }
+
+                state.currentEmergencyStep?.let { step ->
+                    item {
+                        EmergencyQuestionOptions(
+                            step = step,
+                            onAnswer = viewModel::answerEmergencyQuestion,
+                        )
+                    }
+                }
             }
         }
     }
@@ -126,9 +182,11 @@ private fun ChatTopBar(
     scenario: FakeGatewayScenario,
     provider: ProviderMock,
     useRemoteGateway: Boolean,
+    enableLocalAiReadiness: Boolean,
     onScenarioSelected: (FakeGatewayScenario) -> Unit,
     onProviderSelected: (ProviderMock) -> Unit,
     onRemoteToggle: (Boolean) -> Unit,
+    onLocalAiToggle: (Boolean) -> Unit,
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -143,9 +201,11 @@ private fun ChatTopBar(
                 scenario = scenario,
                 provider = provider,
                 useRemoteGateway = useRemoteGateway,
+                enableLocalAiReadiness = enableLocalAiReadiness,
                 onScenarioSelected = onScenarioSelected,
                 onProviderSelected = onProviderSelected,
                 onRemoteToggle = onRemoteToggle,
+                onLocalAiToggle = onLocalAiToggle,
             )
         }
     }
@@ -156,9 +216,11 @@ private fun ChatDebugControls(
     scenario: FakeGatewayScenario,
     provider: ProviderMock,
     useRemoteGateway: Boolean,
+    enableLocalAiReadiness: Boolean,
     onScenarioSelected: (FakeGatewayScenario) -> Unit,
     onProviderSelected: (ProviderMock) -> Unit,
     onRemoteToggle: (Boolean) -> Unit,
+    onLocalAiToggle: (Boolean) -> Unit,
 ) {
     Column(
         verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -182,18 +244,48 @@ private fun ChatDebugControls(
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(
-                text = "Mock gateway",
-                modifier = Modifier.weight(1f),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Switch(
+            DebugSwitch(
+                label = "Mock gateway",
                 checked = useRemoteGateway,
                 onCheckedChange = onRemoteToggle,
+                modifier = Modifier.weight(1f),
+            )
+            DebugSwitch(
+                label = "Local AI",
+                checked = enableLocalAiReadiness,
+                onCheckedChange = onLocalAiToggle,
+                modifier = Modifier.weight(1f),
             )
         }
+    }
+}
+
+@Composable
+private fun DebugSwitch(
+    label: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(
+            text = label,
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+        )
     }
 }
 
@@ -234,6 +326,7 @@ private fun ChatFallbackBanner(
     onDismiss: () -> Unit,
     onRetry: () -> Unit,
     onWhatsappFallback: () -> Unit,
+    onOfflineSupport: () -> Unit,
 ) {
     Surface(
         modifier = Modifier
@@ -254,6 +347,9 @@ private fun ChatFallbackBanner(
                 }
                 OutlinedButton(onClick = onRetry) {
                     Text("Retry")
+                }
+                OutlinedButton(onClick = onOfflineSupport) {
+                    Text("Soporte offline")
                 }
                 if (fallback.type != ExperienceFallbackType.SlaTimeout) {
                     OutlinedButton(onClick = onWhatsappFallback) {
@@ -277,6 +373,7 @@ private fun ExperienceFallback.userFacingMessage(): String =
 private fun ChatErrorBanner(
     error: String,
     onRetry: () -> Unit,
+    onOfflineSupport: () -> Unit,
 ) {
     Surface(
         modifier = Modifier
@@ -293,6 +390,117 @@ private fun ChatErrorBanner(
             Text(error, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
             TextButton(onClick = onRetry) {
                 Text("Retry")
+            }
+            TextButton(onClick = onOfflineSupport) {
+                Text("Soporte offline")
+            }
+        }
+    }
+}
+
+@Composable
+private fun PendingSyncBanner(
+    reports: List<EmergencyReport>,
+    isSyncing: Boolean,
+    onSync: () -> Unit,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.tertiaryContainer,
+        shape = RoundedCornerShape(8.dp),
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = "${reports.size} reporte(s) pendiente(s) de sincronización",
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Button(onClick = onSync, enabled = !isSyncing) {
+                Text(if (isSyncing) "Sync..." else "Sync")
+            }
+        }
+    }
+}
+
+@Composable
+private fun EmergencyInlineOptions(
+    onSelected: (EmergencyType) -> Unit,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        shape = RoundedCornerShape(8.dp),
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text("Soporte offline", style = MaterialTheme.typography.titleSmall)
+            EmergencyType.entries.forEach { type ->
+                OutlinedButton(
+                    onClick = { onSelected(type) },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(type.displayName)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun EmergencyContactsRow(
+    contacts: List<EmergencyContact>,
+    onContactTapped: (EmergencyContact) -> Unit,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        shape = RoundedCornerShape(8.dp),
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text("Contactos offline", style = MaterialTheme.typography.titleSmall)
+            contacts.forEach { contact ->
+                OutlinedButton(
+                    onClick = { onContactTapped(contact) },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text("${contact.label} - ${contact.phone}")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun EmergencyQuestionOptions(
+    step: EmergencyConversationStep,
+    onAnswer: (String, String) -> Unit,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        shape = RoundedCornerShape(8.dp),
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text("Responde para continuar", style = MaterialTheme.typography.titleSmall)
+            step.options.forEach { option ->
+                OutlinedButton(
+                    onClick = { onAnswer(step.id, option) },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(option)
+                }
             }
         }
     }

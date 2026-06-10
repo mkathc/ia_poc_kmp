@@ -29,6 +29,10 @@ class AppViewModel(
         updateConfig { copy(useRemoteGateway = useRemoteGateway) }
     }
 
+    fun toggleLocalAiReadiness(enableLocalAiReadiness: Boolean) {
+        updateConfig { copy(enableLocalAiReadiness = enableLocalAiReadiness) }
+    }
+
     private fun updateConfig(transform: PocConfig.() -> PocConfig) {
         val nextConfig = currentConfig.transform()
         currentConfig = nextConfig
@@ -43,4 +47,5 @@ private fun PocConfig.toDebugState(): PocDebugState =
         activeProvider = provider,
         useRemoteGateway = useRemoteGateway,
         remoteGatewayBaseUrl = remoteGatewayBaseUrl,
+        enableLocalAiReadiness = enableLocalAiReadiness,
     )

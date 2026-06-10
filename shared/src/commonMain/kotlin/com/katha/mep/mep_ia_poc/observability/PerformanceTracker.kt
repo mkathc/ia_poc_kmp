@@ -9,5 +9,9 @@ class PerformanceTracker(
     fun fallbackTriggered(type: String, reason: String) = logger.log("fallbackTriggered", mapOf("type" to type, "reason" to reason))
     fun homeRefreshTime(elapsedMillis: Long) = logger.log("homeRefreshTime", mapOf("elapsedMillis" to elapsedMillis))
     fun searchResponseTime(elapsedMillis: Long) = logger.log("searchResponseTime", mapOf("elapsedMillis" to elapsedMillis))
+    fun emergencyGuideLoadStart() = logger.log("emergencyGuideLoadStart")
+    fun emergencyGuideLoadCompleted(elapsedMillis: Long) = logger.log("emergencyGuideLoadCompleted", mapOf("elapsedMillis" to elapsedMillis))
+    fun emergencySyncStart() = logger.log("emergencySyncStart")
+    fun emergencySyncCompleted() = logger.log("emergencySyncCompleted")
     fun emergencyGuideLoadTime(elapsedMillis: Long) = logger.log("emergencyGuideLoadTime", mapOf("elapsedMillis" to elapsedMillis))
 }

@@ -6,6 +6,7 @@ data class PocConfig(
     val useRemoteGateway: Boolean = false,
     val remoteGatewayBaseUrl: String = "http://10.0.2.2:3000",
     val slaThresholdMillis: Long = 3_000L,
+    val enableLocalAiReadiness: Boolean = false,
 )
 
 enum class FakeGatewayScenario(val wireName: String) {
@@ -22,6 +23,7 @@ enum class FakeGatewayScenario(val wireName: String) {
 enum class ProviderMock(val id: String) {
     providerA("providerA"),
     providerB("providerB"),
+    providerSdk("providerSdk"),
 }
 
 enum class MockUserProfile(val profileName: String) {

@@ -16,7 +16,9 @@ class MainActivity : ComponentActivity() {
         setContent {
             App(
                 viewModel = AppDi.appViewModel,
+                homeViewModel = AppDi.homeViewModel,
                 chatViewModel = AppDi.chatViewModel,
+                searchViewModel = AppDi.searchViewModel,
             )
         }
     }
@@ -27,6 +29,8 @@ class MainActivity : ComponentActivity() {
 fun AppAndroidPreview() {
     App(
         viewModel = AppDi.appViewModel,
+        homeViewModel = AppDi.homeViewModel,
         chatViewModel = AppDi.chatViewModel,
+        searchViewModel = AppDi.searchViewModel,
     )
 }

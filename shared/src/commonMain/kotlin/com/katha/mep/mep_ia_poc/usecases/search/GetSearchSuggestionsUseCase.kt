@@ -6,10 +6,10 @@ import com.katha.mep.mep_ia_poc.models.chat.ConversationContext
 import com.katha.mep.mep_ia_poc.models.search.SearchSuggestion
 
 class GetSearchSuggestionsUseCase(
-    private val searchService: SearchService,
+    private val searchServiceProvider: () -> SearchService,
 ) {
     suspend operator fun invoke(
         context: ConversationContext,
         profile: SearchProfile,
-    ): List<SearchSuggestion> = searchService.getSuggestions(context, profile)
+    ): List<SearchSuggestion> = searchServiceProvider().getSuggestions(context, profile)
 }

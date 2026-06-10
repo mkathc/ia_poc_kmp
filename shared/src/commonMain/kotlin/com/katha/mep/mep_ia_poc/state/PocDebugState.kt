@@ -8,4 +8,5 @@ data class PocDebugState(
     val activeProvider: ProviderMock,
     val useRemoteGateway: Boolean,
     val remoteGatewayBaseUrl: String,
+    val enableLocalAiReadiness: Boolean,
 )

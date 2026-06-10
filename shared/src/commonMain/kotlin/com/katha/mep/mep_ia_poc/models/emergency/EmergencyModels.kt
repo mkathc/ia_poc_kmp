@@ -2,7 +2,7 @@ package com.katha.mep.mep_ia_poc.models.emergency
 
 enum class EmergencyType(val displayName: String) {
     carAccident("Accidente vehicular"),
-    medicalEmergency("Emergencia medica"),
+    medicalEmergency("Emergencia médica"),
     theftAssistance("Robo / asistencia"),
 }
 

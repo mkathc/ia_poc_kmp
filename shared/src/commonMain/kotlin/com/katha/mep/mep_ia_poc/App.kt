@@ -1,11 +1,8 @@
 package com.katha.mep.mep_ia_poc
 
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeContentPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -17,16 +14,23 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.katha.mep.mep_ia_poc.chat.ChatScreen
 import com.katha.mep.mep_ia_poc.chat.ChatViewModel
-import com.katha.mep.mep_ia_poc.ui.components.PlaceholderPanel
+import com.katha.mep.mep_ia_poc.home.HomeScreen
+import com.katha.mep.mep_ia_poc.home.HomeViewModel
+import com.katha.mep.mep_ia_poc.search.SearchScreen
+import com.katha.mep.mep_ia_poc.search.SearchViewModel
 import com.katha.mep.mep_ia_poc.ui.navigation.AppTab
 import com.katha.mep.mep_ia_poc.viewmodel.AppViewModel
 import com.katha.mep.mep_ia_poc.viewmodel.previewAppViewModel
 import com.katha.mep.mep_ia_poc.viewmodel.previewChatViewModel
+import com.katha.mep.mep_ia_poc.viewmodel.previewHomeViewModel
+import com.katha.mep.mep_ia_poc.viewmodel.previewSearchViewModel
 
 @Composable
 fun App(
     viewModel: AppViewModel,
+    homeViewModel: HomeViewModel,
     chatViewModel: ChatViewModel,
+    searchViewModel: SearchViewModel,
 ) {
     MaterialTheme {
         var selectedTab by remember { mutableStateOf(AppTab.Chat) }
@@ -56,35 +60,17 @@ fun App(
                         appViewModel = viewModel,
                         modifier = Modifier.fillMaxSize(),
                     )
-                    AppTab.Home -> PlaceholderScreen(
-                        title = "Home",
-                        description = "Home personalization pending",
+                    AppTab.Home -> HomeScreen(
+                        viewModel = homeViewModel,
+                        modifier = Modifier.fillMaxSize(),
                     )
-                    AppTab.Search -> PlaceholderScreen(
-                        title = "Search",
-                        description = "Intelligent search pending",
+                    AppTab.Search -> SearchScreen(
+                        viewModel = searchViewModel,
+                        modifier = Modifier.fillMaxSize(),
                     )
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun PlaceholderScreen(
-    title: String,
-    description: String,
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Text(title, style = MaterialTheme.typography.headlineMedium)
-        PlaceholderPanel(
-            title = title,
-            description = description,
-        )
     }
 }
 
@@ -94,6 +80,8 @@ fun AppPreview() {
     val appViewModel = previewAppViewModel()
     App(
         viewModel = appViewModel,
+        homeViewModel = previewHomeViewModel(appViewModel),
         chatViewModel = previewChatViewModel(appViewModel),
+        searchViewModel = previewSearchViewModel(appViewModel),
     )
 }
